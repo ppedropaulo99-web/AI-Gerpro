@@ -96,6 +96,7 @@ export type ChatStreamEvent =
 export type ErrorCode =
   | "bad_request"
   | "unauthorized"
+  | "forbidden"
   | "not_found"
   | "llm_timeout"
   | "llm_unavailable"
@@ -113,14 +114,46 @@ export interface AdapterStatus {
   detail: string;
 }
 
-export interface HealthResponse {
+/**
+ * GET /api/health — PÚBLICO e mínimo: não consulta bases nem o Ollama e não revela
+ * ambiente, URLs, versões de servidores, coleções ou modo de autenticação.
+ * `chat` informa os limites aceitos, para o widget nunca enviar mais do que o backend aceita.
+ */
+export interface PublicHealthResponse {
+  status: "ok";
+  service: string;
+  version: string;
+  timestamp: string;
+  chat: { maxMessages: number; maxCharsPerMessage: number };
+}
+
+/**
+ * GET /api/health/ollama — PÚBLICO e mínimo (usado pelo selo do widget). Sem URLs, portas,
+ * versão do Ollama, lista de modelos ou mensagens técnicas. Resultado reaproveitado por alguns
+ * segundos para que chamadas anônimas repetidas não sobrecarreguem o serviço de IA.
+ */
+export interface OllamaHealthResponse {
+  status: "ok" | "degraded" | "unavailable";
+  model: string;
+  latencyMs: number;
+}
+
+/**
+ * GET /api/health/details — DIAGNÓSTICO INTERNO (token administrativo ou loopback sem proxy).
+ * Consulta Qdrant, Neo4j, embeddings e Ollama a cada chamada. Nunca inclui segredos.
+ */
+export interface DiagnosticsResponse {
   status: "ok";
   service: string;
   version: string;
   /** Identificação técnica do ambiente (ex.: "demo"). */
   environment: string;
+  /** Regras de ambiente corporativo ativas (APP_ENV fora de demo/dev/local/test). */
+  strict: boolean;
+  chatRequiresAuth: boolean;
   uptimeSec: number;
   timestamp: string;
+  ollama: OllamaDiagnostics;
   adapters: { vectorStore: AdapterStatus; graphStore: AdapterStatus; embeddings: AdapterStatus };
   retrieval: {
     /** Há conector utilizável (Qdrant + embeddings, ou Neo4j com consultas mapeadas). */
@@ -134,7 +167,8 @@ export interface HealthResponse {
   };
 }
 
-export interface OllamaHealthResponse {
+/** Detalhes do Ollama: só no diagnóstico interno (a mensagem de erro pode citar o endereço interno). */
+export interface OllamaDiagnostics {
   status: "ok" | "degraded" | "unavailable";
   reachable: boolean;
   modelAvailable: boolean;

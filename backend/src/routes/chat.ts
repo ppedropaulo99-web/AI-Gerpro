@@ -88,6 +88,14 @@ export async function chatRoutes(app: FastifyInstance, deps: AppDeps): Promise<v
    * nunca do corpo da requisição — que aceita apenas `messages`.
    */
   async function prepareChat(req: FastifyRequest<{ Body: ChatRequest }>, signal: AbortSignal): Promise<PreparedChat> {
+    // Autenticação antes de qualquer trabalho: com CHAT_REQUIRE_AUTH, nada chega à GPU sem
+    // AuthContext válido. Credencial inválida → AuthError → 401 (motivo só no log).
+    const requireAuth = deps.config.security.requireChatAuth;
+    const auth = requireAuth || deps.retrieval.enabled ? await deps.auth.resolve(req.headers) : null;
+    if (requireAuth && auth === null) {
+      throw new HttpError(401, "unauthorized", "Autenticação necessária para usar o assistente.");
+    }
+
     validateMessages(req.body);
     const history: ChatMessage[] = req.body.messages.map((m) => ({ role: m.role, content: m.content }));
     const system: ChatMessage = { role: "system", content: SYSTEM_PROMPT };
@@ -95,7 +103,6 @@ export async function chatRoutes(app: FastifyInstance, deps: AppDeps): Promise<v
       return { messages: [system, ...history], grounding: "disabled", included: [], resolution: null, fixedAnswer: null };
     }
 
-    const auth = await deps.auth.resolve(req.headers); // AuthError → 401
     const question = history.at(-1)!.content;
     // Turnos anteriores só para resolver referências; o resolvedor usa apenas os do usuário.
     const previous = req.body.messages.slice(0, -1);

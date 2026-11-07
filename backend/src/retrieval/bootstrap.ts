@@ -20,7 +20,7 @@ export interface RetrievalStack {
   retrieval: RetrievalService;
   auth: AuthContextResolver;
   mapping: RetrievalMapping;
-  /** Avisos de configuração (sem segredos), exibidos no log e em /api/health. */
+  /** Avisos de configuração (sem segredos), exibidos no log e em /api/health/details. */
   warnings: string[];
 }
 
@@ -69,6 +69,15 @@ export function createRetrievalStack(config: AppConfig, overrides: StackOverride
   const retrieval = new RetrievalService({ vectorStore, graphStore, embeddings, mapping, config: config.retrieval });
   if (retrieval.enabled && auth.mode === "none") {
     warnings.push("GERPRO_AUTH_MODE=none: nenhuma consulta corporativa será feita até integrar a autenticação do Gerpro");
+  }
+  // O widget envia só as últimas CHAT_MAX_MESSAGES mensagens (começando por uma do usuário):
+  // cabem nelas (CHAT_MAX_MESSAGES - 1) / 2 perguntas anteriores para resolver continuações.
+  const userTurnsInWindow = Math.floor((config.chat.maxMessages - 1) / 2);
+  if (retrieval.graphEnabled && config.retrieval.contextTurns > userTurnsInWindow) {
+    warnings.push(
+      `RETRIEVAL_CONTEXT_TURNS=${config.retrieval.contextTurns} excede as perguntas anteriores que cabem em ` +
+        `CHAT_MAX_MESSAGES=${config.chat.maxMessages} (${userTurnsInWindow}); aumente CHAT_MAX_MESSAGES ou reduza RETRIEVAL_CONTEXT_TURNS`,
+    );
   }
   return { vectorStore, graphStore, embeddings, retrieval, auth, mapping, warnings };
 }

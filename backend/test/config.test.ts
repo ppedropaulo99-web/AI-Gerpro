@@ -2,6 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadConfig, ConfigError } from "../src/config/env.ts";
 
+/** Mínimo exigido em ambiente corporativo (APP_ENV fora de demo/dev/local/test). */
+const STRICT_OK = {
+  GERPRO_AUTH_MODE: "jwt-hs256",
+  GERPRO_AUTH_JWT_SECRET: "s".repeat(40),
+  GERPRO_AUTH_JWT_ISSUER: "gerpro",
+  GERPRO_AUTH_JWT_AUDIENCE: "ai-gerpro",
+};
+
 test("aplica padrões quando não há variáveis", () => {
   const c = loadConfig({});
   assert.equal(c.port, 3001);
@@ -98,11 +106,12 @@ test("autenticação jwt-hs256 exige segredo forte", () => {
 });
 
 test("valida novas opções do Ollama e ambiente", () => {
-  const c = loadConfig({ OLLAMA_THINK: "auto", OLLAMA_KEEP_ALIVE: "default", OLLAMA_NUM_CTX: "0", APP_ENV: "homologacao" });
+  const c = loadConfig({ OLLAMA_THINK: "auto", OLLAMA_KEEP_ALIVE: "default", OLLAMA_NUM_CTX: "0", APP_ENV: "homologacao", ...STRICT_OK });
   assert.equal(c.ollama.think, "auto");
   assert.equal(c.ollama.keepAlive, null);
   assert.equal(c.ollama.numCtx, null);
   assert.equal(c.environment, "homologacao");
+  assert.equal(c.security.strict, true);
   assert.throws(() => loadConfig({ OLLAMA_KEEP_ALIVE: "trinta" }), ConfigError);
   assert.throws(() => loadConfig({ APP_ENV: "Demo Ambiente" }), ConfigError);
 });

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -7,8 +8,11 @@ import react from "@vitejs/plugin-react";
 const backendUrl = process.env["BACKEND_URL"] ?? "http://127.0.0.1:3001";
 const proxy = { "/api": { target: backendUrl, changeOrigin: true } };
 
+const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
+
 export default defineConfig({
   plugins: [react()],
+  define: { __AI_GERPRO_VERSION__: JSON.stringify(version) },
   build: {
     rollupOptions: {
       input: {

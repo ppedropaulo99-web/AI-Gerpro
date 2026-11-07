@@ -23,6 +23,8 @@ export interface AppDeps {
   auth: AuthContextResolver;
   /** Avisos de configuração detectados na inicialização (sem segredos). */
   warnings?: string[];
+  /** Reaproveitamento do estado público do Ollama (ms). Padrão: 5000; testes usam 0. */
+  publicHealthCacheMs?: number;
 }
 
 export function buildApp(deps: AppDeps, options: FastifyServerOptions = {}): FastifyInstance {

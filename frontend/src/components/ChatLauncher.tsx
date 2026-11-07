@@ -6,9 +6,9 @@
  * - Pode ser controlado (`open` + `onOpenChange`) ou não controlado (`defaultOpen`).
  * - Esc fecha o painel; o foco vai para o campo ao abrir e volta ao botão ao fechar.
  */
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ChatPanel, type ChatPanelProps } from "./ChatPanel.tsx";
-import "./ChatLauncher.css";
+// O CSS é carregado pelo ponto de entrada (embed.tsx injeta no Shadow DOM do widget).
 
 export type LauncherPosition = "bottom-left" | "middle-left";
 
@@ -54,9 +54,13 @@ export function ChatLauncher({
     [isControlled, onOpenChange],
   );
 
-  // Ao fechar, devolve o foco ao botão se ele estava dentro do painel.
-  useEffect(() => {
-    if (wasOpen.current && !open && panelRef.current?.contains(document.activeElement)) {
+  // Ao fechar, devolve o foco ao botão se ele estava dentro do painel. Dentro de um Shadow DOM,
+  // document.activeElement aponta para o hospedeiro; o elemento real está em shadowRoot.activeElement.
+  // useLayoutEffect: roda antes de o navegador tirar o foco do painel que acabou de ficar "inert".
+  useLayoutEffect(() => {
+    const rootNode = panelRef.current?.getRootNode() as Document | ShadowRoot | undefined;
+    const active = rootNode?.activeElement ?? document.activeElement;
+    if (wasOpen.current && !open && active && panelRef.current?.contains(active)) {
       buttonRef.current?.focus();
     }
     wasOpen.current = open;

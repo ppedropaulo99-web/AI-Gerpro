@@ -25,11 +25,16 @@ const LLM_ERROR_MAP: Record<LlmErrorKind, { status: number; code: ErrorCode; mes
 
 const body = (code: ErrorCode, message: string): ErrorResponse => ({ error: { code, message } });
 
-/** Converte um LlmError no status HTTP e no corpo de erro padronizado (também usado no stream). */
+const MODEL_MISSING_MESSAGE = "O modelo de IA configurado não está disponível no servidor.";
+
+/**
+ * Converte um LlmError no status HTTP e no corpo de erro padronizado (também usado no stream).
+ * A mensagem enviada ao navegador é SEMPRE genérica: o detalhe técnico (endereço interno do
+ * Ollama, corpo de erro do upstream, caminhos de arquivo) fica apenas no log do servidor.
+ */
 export function llmErrorToResponse(err: LlmError): { status: number; error: ErrorResponse["error"] } {
   const mapped = LLM_ERROR_MAP[err.kind];
-  // O detalhe técnico do upstream (ex.: "model not found") é útil e não contém dados sensíveis.
-  const message = err.kind === "upstream" ? `${mapped.message} ${err.message}` : mapped.message;
+  const message = err.kind === "upstream" && err.upstreamStatus === 404 ? MODEL_MISSING_MESSAGE : mapped.message;
   return { status: mapped.status, error: { code: mapped.code, message } };
 }
 

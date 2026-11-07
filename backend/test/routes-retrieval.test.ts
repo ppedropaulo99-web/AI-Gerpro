@@ -161,12 +161,20 @@ test("falha das bases não derruba o chat: grounding unavailable e resposta norm
   assert.equal(res.json().grounding, "unavailable");
 });
 
-test("logs e /api/health não expõem segredos, tokens, perguntas ou conteúdo recuperado", async () => {
-  const { app, logs } = setup();
+test("logs e health (público e diagnóstico) não expõem segredos, tokens, perguntas ou conteúdo recuperado", async () => {
+  const { app, logs, qdrant } = setup();
   const t = token();
   await app.inject({ method: "POST", url: "/api/chat", headers: { authorization: `Bearer ${t}` }, payload: ask("pergunta-confidencial-xyz") });
-  const health = await app.inject({ method: "GET", url: "/api/health" });
-  const all = logs.join("") + health.payload;
+  let baseCalls = 0;
+  const original = qdrant.versionInfo.bind(qdrant);
+  qdrant.versionInfo = async () => (baseCalls++, original());
+  const queriesBefore = qdrant.calls.length;
+  const pub = await app.inject({ method: "GET", url: "/api/health" });
+  await app.inject({ method: "GET", url: "/api/health/ollama" });
+  assert.equal(baseCalls + qdrant.calls.length - queriesBefore, 0, "o health público não consulta as bases");
+  for (const leak of ["docs_teste", "jwt-hs256", "Qdrant", "Neo4j", "6333", "7687"]) assert.ok(!pub.payload.includes(leak), `público expôs ${leak}`);
+  const health = await app.inject({ method: "GET", url: "/api/health/details" });
+  const all = logs.join("") + health.payload + pub.payload;
   for (const secret of [SECRET_KEY, NEO_PASS, TEST_SECRET, t, "pergunta-confidencial-xyz", "Trecho sintético", "127.0.0.1:6333", "leitor"]) {
     assert.ok(!all.includes(secret), `vazou: ${secret.slice(0, 12)}…`);
   }

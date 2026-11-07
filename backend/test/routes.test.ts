@@ -60,17 +60,31 @@ function setup(env: Record<string, string> = {}) {
   const llm = new FakeLlm();
   const config = loadConfig(env);
   const stack = createRetrievalStack(config);
-  const deps: AppDeps = { config, version: "test", llm, ...stack };
+  const deps: AppDeps = { config, version: "test", llm, ...stack, publicHealthCacheMs: 0 };
   return { app: buildApp(deps), llm };
 }
 
-test("GET /api/health responde ok e informa adaptadores não configurados", async () => {
+test("GET /api/health é público e mínimo: só estado, versão e limites do chat", async () => {
   const { app } = setup();
   const res = await app.inject({ method: "GET", url: "/api/health" });
   assert.equal(res.statusCode, 200);
   const body = res.json();
+  assert.deepEqual(Object.keys(body).sort(), ["chat", "service", "status", "timestamp", "version"]);
   assert.equal(body.status, "ok");
+  assert.deepEqual(body.chat, { maxMessages: 30, maxCharsPerMessage: 8000 });
+  for (const leak of ["environment", "adapters", "retrieval", "demo", "authMode"]) assert.ok(!res.payload.includes(leak), leak);
+});
+
+test("GET /api/health/details (diagnóstico) traz o estado completo para a infraestrutura", async () => {
+  const { app } = setup();
+  const res = await app.inject({ method: "GET", url: "/api/health/details" }); // loopback, sem proxy
+  assert.equal(res.statusCode, 200);
+  const body = res.json();
   assert.equal(body.environment, "demo");
+  assert.equal(body.strict, false);
+  assert.equal(body.chatRequiresAuth, false);
+  assert.equal(body.ollama.status, "ok");
+  assert.deepEqual(body.ollama.availableModels, ["fake:1b"]);
   assert.equal(body.adapters.vectorStore.configured, false);
   assert.equal(body.adapters.graphStore.configured, false);
   assert.equal(body.adapters.embeddings.configured, false);
@@ -83,6 +97,7 @@ test("GET /api/health/ollama: 200 quando ok, 503 quando degradado/indisponível"
   let res = await app.inject({ method: "GET", url: "/api/health/ollama" });
   assert.equal(res.statusCode, 200);
   assert.equal(res.json().status, "ok");
+  assert.deepEqual(Object.keys(res.json()).sort(), ["latencyMs", "model", "status"]);
 
   llm.healthValue = { ...llm.healthValue, modelAvailable: false };
   res = await app.inject({ method: "GET", url: "/api/health/ollama" });

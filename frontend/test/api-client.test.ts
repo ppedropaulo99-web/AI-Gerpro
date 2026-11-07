@@ -54,7 +54,7 @@ test("sendChat reporta cancelamento", async () => {
 
 test("getOllamaHealth aceita 503 com corpo de diagnóstico", async () => {
   const api = createChatApi("/api", async () =>
-    json(503, { status: "unavailable", reachable: false, modelAvailable: false, model: "m", availableModels: [], version: null, latencyMs: 1, error: "x" }),
+    json(503, { status: "unavailable", model: "m", latencyMs: 1 }),
   );
   const h = await api.getOllamaHealth();
   assert.equal(h.status, "unavailable");

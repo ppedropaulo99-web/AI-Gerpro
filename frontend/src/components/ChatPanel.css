@@ -12,11 +12,11 @@
 
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 12px;
   max-width: 820px;
   height: 100%;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 16px;
   box-sizing: border-box;
   color: var(--gia-fg);
   background: var(--gia-bg);
@@ -28,19 +28,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 16px;
 }
 .gia-header h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 20px;
   color: var(--gia-accent);
 }
 
 .gia-badge {
   border: 1px solid var(--gia-border);
   border-radius: 999px;
-  padding: 0.2rem 0.7rem;
-  font-size: 0.8rem;
+  padding: 3.2px 11.2px;
+  font-size: 12.8px;
   background: var(--gia-bg);
   color: var(--gia-muted);
   cursor: pointer;
@@ -51,11 +51,11 @@
 
 .gia-disclaimer {
   margin: 0;
-  padding: 0.5rem 0.75rem;
+  padding: 8px 12px;
   border-left: 3px solid var(--gia-accent);
   background: var(--gia-assistant-bg);
   color: var(--gia-muted);
-  font-size: 0.85rem;
+  font-size: 13.6px;
 }
 
 .gia-messages {
@@ -64,8 +64,8 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 0.5rem;
+  gap: 9.6px;
+  padding: 8px;
   border: 1px solid var(--gia-border);
   border-radius: 8px;
 }
@@ -73,34 +73,34 @@
 
 .gia-msg {
   max-width: 85%;
-  padding: 0.6rem 0.8rem;
+  padding: 9.6px 12.8px;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 4px;
 }
 .gia-msg--user { align-self: flex-end; background: var(--gia-user-bg); }
 .gia-msg--assistant { align-self: flex-start; background: var(--gia-assistant-bg); }
 .gia-msg--pending .gia-content { color: var(--gia-muted); font-style: italic; }
-.gia-role { font-size: 0.75rem; font-weight: 600; color: var(--gia-muted); }
+.gia-role { font-size: 12px; font-weight: 600; color: var(--gia-muted); }
 .gia-content { word-wrap: break-word; overflow-wrap: anywhere; line-height: 1.45; }
 /* Mensagens do usuário: texto puro, preservando quebras de linha. */
 .gia-content--plain { white-space: pre-wrap; }
-.gia-meta { font-size: 0.7rem; color: var(--gia-muted); align-self: flex-end; }
+.gia-meta { font-size: 11.2px; color: var(--gia-muted); align-self: flex-end; }
 
 .gia-error {
-  padding: 0.5rem 0.75rem;
+  padding: 8px 12px;
   border-radius: 6px;
   background: var(--gia-error-bg);
   color: var(--gia-error-fg);
-  font-size: 0.9rem;
+  font-size: 14.4px;
 }
 
-.gia-form { display: flex; gap: 0.5rem; align-items: stretch; }
+.gia-form { display: flex; gap: 8px; align-items: stretch; }
 .gia-form textarea {
   flex: 1;
   resize: vertical;
-  padding: 0.5rem;
+  padding: 8px;
   border: 1px solid var(--gia-border);
   border-radius: 6px;
   font: inherit;
@@ -117,7 +117,7 @@
 .gia-form button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---- Etapa 2: cabeçalho com ações, streaming, indicador, Markdown ---- */
-.gia-header-actions { display: flex; align-items: center; gap: 0.5rem; }
+.gia-header-actions { display: flex; align-items: center; gap: 8px; }
 .gia-close {
   width: 32px;
   height: 32px;
@@ -125,22 +125,22 @@
   border-radius: 6px;
   background: var(--gia-bg);
   color: var(--gia-muted);
-  font-size: 1.3rem;
+  font-size: 20.8px;
   line-height: 1;
   cursor: pointer;
 }
 .gia-close:hover { color: var(--gia-fg); border-color: var(--gia-muted); }
 
 .gia-notice {
-  padding: 0.5rem 0.75rem;
+  padding: 8px 12px;
   border-radius: 6px;
   background: var(--gia-assistant-bg);
   color: var(--gia-muted);
-  font-size: 0.9rem;
+  font-size: 14.4px;
 }
 
 /* Indicador de processamento */
-.gia-processing { display: flex; align-items: center; gap: 0.5rem; color: var(--gia-muted); font-style: italic; }
+.gia-processing { display: flex; align-items: center; gap: 8px; color: var(--gia-muted); font-style: italic; }
 .gia-dots { display: inline-flex; gap: 3px; }
 .gia-dots span {
   width: 6px;
@@ -167,7 +167,7 @@
 .gia-msg--error .gia-meta { color: var(--gia-error-fg); }
 
 /* Botão interromper */
-.gia-form button.gia-stop { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; background: #7a2a1f; }
+.gia-form button.gia-stop { display: inline-flex; align-items: center; justify-content: center; gap: 6.4px; background: #7a2a1f; }
 .gia-stop-icon { width: 10px; height: 10px; background: currentColor; border-radius: 2px; }
 
 /* Markdown dentro das respostas */
@@ -229,50 +229,50 @@ button.gia-cite:hover, button.gia-cite:focus-visible { border-color: var(--gia-a
   font-weight: 400;
   cursor: help;
 }
-.gia-sources-wrap { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.15rem; }
+.gia-sources-wrap { display: flex; flex-direction: column; gap: 4.8px; margin-top: 2.4px; }
 .gia-sources-warn {
   margin: 0;
-  padding: 0.25rem 0.5rem;
+  padding: 4px 8px;
   border-left: 3px solid #b7791f;
   background: #fff8e6;
   color: #6b4a12;
-  font-size: 0.78rem;
+  font-size: 12.48px;
 }
 .gia-sources > summary {
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 12.48px;
   color: var(--gia-muted);
   list-style-position: inside;
 }
 .gia-sources-count { color: var(--gia-accent); }
-.gia-sources-list { margin: 0.3rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
-.gia-source { border: 1px solid var(--gia-border); border-radius: 6px; background: var(--gia-bg); font-size: 0.8rem; }
+.gia-sources-list { margin: 4.8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.gia-source { border: 1px solid var(--gia-border); border-radius: 6px; background: var(--gia-bg); font-size: 12.8px; }
 .gia-source--selected { border-color: var(--gia-accent); box-shadow: 0 0 0 1px var(--gia-accent) inset; }
 .gia-source > summary {
   display: flex;
   align-items: baseline;
-  gap: 0.4rem;
-  padding: 0.3rem 0.45rem;
+  gap: 6.4px;
+  padding: 4.8px 7.2px;
   cursor: pointer;
   list-style: none;
 }
 .gia-source > summary::-webkit-details-marker { display: none; }
-.gia-source-head { display: flex; flex-wrap: wrap; gap: 0 0.35rem; min-width: 0; flex: 1; }
+.gia-source-head { display: flex; flex-wrap: wrap; gap: 0 5.6px; min-width: 0; flex: 1; }
 .gia-source-kind { color: var(--gia-muted); }
 .gia-source-label { font-weight: 600; }
 .gia-source-title { color: var(--gia-fg); overflow-wrap: anywhere; }
-.gia-source-flag { font-size: 0.7rem; color: #2b6a2e; white-space: nowrap; }
+.gia-source-flag { font-size: 11.2px; color: #2b6a2e; white-space: nowrap; }
 .gia-source-details {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 0.15rem 0.5rem;
+  gap: 2.4px 8px;
   margin: 0;
-  padding: 0.1rem 0.5rem 0.4rem;
+  padding: 1.6px 8px 6.4px;
   color: var(--gia-muted);
 }
 .gia-source-details dt { font-weight: 600; }
 .gia-source-details dd { margin: 0; overflow-wrap: anywhere; color: var(--gia-fg); }
-.gia-source-id { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.72rem; }
+.gia-source-id { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11.52px; }
 .gia-source-excerpt { white-space: pre-wrap; }
-.gia-source-link { display: inline-block; margin: 0 0.5rem 0.4rem; font-size: 0.78rem; color: var(--gia-accent); }
-.gia-grounding-note { margin: 0; font-size: 0.75rem; color: var(--gia-muted); font-style: italic; }
+.gia-source-link { display: inline-block; margin: 0 8px 6.4px; font-size: 12.48px; color: var(--gia-accent); }
+.gia-grounding-note { margin: 0; font-size: 12px; color: var(--gia-muted); font-style: italic; }

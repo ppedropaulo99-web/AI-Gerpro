@@ -77,6 +77,13 @@ async function main(): Promise<void> {
       `embeddings: ${config.embeddings?.model ?? "não configurado"} | auth: ${stack.auth.mode}`,
   );
   for (const w of stack.warnings) app.log.warn(`Recuperação: ${w}`);
+  // Segurança: apenas indicadores booleanos — nunca tokens ou segredos.
+  const sec = config.security;
+  app.log.info(
+    `Segurança: modo ${sec.strict ? "corporativo (estrito)" : "local"} | chat exige autenticação: ${sec.requireChatAuth ? "sim" : "não"} | ` +
+      `diagnóstico: ${sec.diagnostics.token ? "token" : "sem token"}${sec.diagnostics.allowLoopback ? " + loopback" : ""}`,
+  );
+  if (!sec.requireChatAuth) app.log.warn("Chat sem autenticação: aceitável só em ambiente local de demonstração");
 
   // Pré-carga em segundo plano: a 1ª pergunta não paga o tempo de carregar o modelo na GPU.
   if (o.preload) {

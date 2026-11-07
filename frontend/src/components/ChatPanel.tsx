@@ -9,7 +9,8 @@ import type { ChatMessage, Grounding, OllamaHealthResponse, ResolutionSummary, S
 import { Markdown, type CitationOptions } from "./Markdown.tsx";
 import { SourceList } from "./SourceList.tsx";
 import { ORIGIN_LABEL, analyzeCitations, clip, groundingNote, resolutionNote } from "../sources/model.ts";
-import "./ChatPanel.css";
+import { DEFAULT_CHAT_LIMITS, buildRequestHistory, normalizeLimits, type ChatLimits } from "../api/history.ts";
+// O CSS é carregado pelo ponto de entrada: main.tsx (página) ou embed.tsx (Shadow DOM do widget).
 
 export interface ChatPanelProps {
   /** URL base do backend do assistente. Padrão: "/api". */
@@ -44,7 +45,6 @@ type Phase = "idle" | "waiting" | "thinking" | "streaming";
 
 type HealthState = { kind: "checking" } | { kind: "loaded"; data: OllamaHealthResponse } | { kind: "error"; message: string };
 
-const MAX_CHARS = 8000;
 let nextId = 1;
 
 export function ChatPanel({
@@ -67,6 +67,7 @@ export function ChatPanel({
   const [notice, setNotice] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthState>({ kind: "checking" });
   const [elapsed, setElapsed] = useState(0);
+  const [limits, setLimits] = useState<ChatLimits>(DEFAULT_CHAT_LIMITS);
   /** Marcador clicado no texto: abre a fonte correspondente na lista da mensagem. */
   const [selected, setSelected] = useState<{ msgId: number; ref: string; n: number } | null>(null);
   /** A recuperação está ativa neste backend (recebemos fundamentação diferente de "disabled"). */
@@ -85,6 +86,17 @@ export function ChatPanel({
   }, [client]);
 
   useEffect(checkHealth, [checkHealth]);
+  // Limites aceitos pelo backend (CHAT_MAX_MESSAGES / CHAT_MAX_CHARS_PER_MESSAGE): o histórico
+  // enviado nunca passa deles. Até a resposta (ou se falhar), valem os padrões do backend.
+  useEffect(() => {
+    if (!client.getHealth) return;
+    const ac = new AbortController();
+    client
+      .getHealth(ac.signal)
+      .then((h) => setLimits(normalizeLimits(h.chat)))
+      .catch(() => {});
+    return () => ac.abort();
+  }, [client]);
   useEffect(() => () => abortRef.current?.abort(), []);
   useEffect(() => {
     if (active) inputRef.current?.focus();
@@ -120,10 +132,13 @@ export function ChatPanel({
     setError(null);
     setNotice(null);
     setPhase("waiting");
+    // O campo fica desabilitado durante a geração e perde o foco; quem digitava recebe o foco de volta no fim.
+    const restoreFocus = activeIn(inputRef.current) === inputRef.current;
 
     const controller = new AbortController();
     abortRef.current = controller;
-    const payload = history.map(({ role, content }) => ({ role, content }));
+    // A conversa visível fica inteira; o backend recebe só a janela recente que ele aceita.
+    const payload = buildRequestHistory(history, limits);
     let received = "";
 
     // Agrupa os trechos recebidos por quadro de animação (evita re-renderizar a cada token).
@@ -183,6 +198,14 @@ export function ChatPanel({
     } finally {
       setPhase("idle");
       abortRef.current = null;
+      if (restoreFocus) {
+        // Após reabilitar o campo (próximo quadro), só se o usuário não focou outro elemento.
+        requestAnimationFrame(() => {
+          const input = inputRef.current;
+          const current = activeIn(input);
+          if (input && (current === null || current === input.ownerDocument.body)) input.focus();
+        });
+      }
     }
   }
 
@@ -264,7 +287,7 @@ export function ChatPanel({
           onKeyDown={onKeyDown}
           placeholder="Digite sua mensagem (Enter envia, Shift+Enter quebra linha)"
           rows={3}
-          maxLength={MAX_CHARS}
+          maxLength={limits.maxCharsPerMessage}
           disabled={pending}
           aria-label="Mensagem"
         />
@@ -319,6 +342,13 @@ function SourceFooter({ m, selected, streaming }: { m: UiMessage; selected: { re
   );
 }
 
+/** Elemento focado no mesmo escopo do elemento (documento ou Shadow DOM do widget). */
+function activeIn(el: HTMLElement | null): Element | null {
+  if (!el) return null;
+  const root = el.getRootNode() as Document | ShadowRoot;
+  return root.activeElement ?? null;
+}
+
 function formatMeta(model: string, durationMs: number): string {
   return `${model} · ${(durationMs / 1000).toFixed(1)} s`;
 }
@@ -343,6 +373,12 @@ function ProcessingIndicator({ phase, elapsed }: { phase: Phase; elapsed: number
   );
 }
 
+const HEALTH_TITLE: Record<OllamaHealthResponse["status"], string> = {
+  ok: "Serviço de IA disponível",
+  degraded: "O modelo de IA configurado não está disponível no servidor",
+  unavailable: "Serviço de IA indisponível no momento",
+};
+
 function HealthBadge({ state, onRetry }: { state: HealthState; onRetry: () => void }) {
   if (state.kind === "checking") return <span className="gia-badge gia-badge--checking">Verificando modelo…</span>;
   if (state.kind === "error") {
@@ -364,7 +400,7 @@ function HealthBadge({ state, onRetry }: { state: HealthState; onRetry: () => vo
       type="button"
       className={`gia-badge gia-badge--${data.status === "ok" ? "ok" : "down"}`}
       onClick={onRetry}
-      title={data.error ?? `Ollama ${data.version ?? ""} · ${data.latencyMs} ms`}
+      title={HEALTH_TITLE[data.status]}
     >
       {label}
     </button>

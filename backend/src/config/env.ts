@@ -93,6 +93,26 @@ export interface AuthConfig {
   } | null;
 }
 
+/**
+ * Proteções de ambiente corporativo. "strict" vale para todo APP_ENV fora de RELAXED_ENVIRONMENTS
+ * (ex.: homologacao, producao): exige autenticação no chat, JWT com emissor e audiência, TLS
+ * verificado nas bases e diagnósticos protegidos. Os ambientes locais mantêm o comportamento atual.
+ */
+export interface SecurityConfig {
+  strict: boolean;
+  /** Exige AuthContext válido para usar o chat (sem acesso anônimo à GPU). */
+  requireChatAuth: boolean;
+  diagnostics: {
+    /** Token administrativo para GET /api/health/details (Authorization: Bearer). Segredo. */
+    token: string | null;
+    /** Permite o diagnóstico sem token a partir de 127.0.0.1/::1, sem cabeçalhos de proxy. */
+    allowLoopback: boolean;
+  };
+}
+
+/** Ambientes locais (desenvolvimento/demonstração): regras estritas desativadas. */
+export const RELAXED_ENVIRONMENTS: readonly string[] = ["demo", "dev", "development", "local", "test"];
+
 export interface AppConfig {
   environment: AppEnvironment;
   port: number;
@@ -106,6 +126,7 @@ export interface AppConfig {
   embeddings: EmbeddingsConfig | null;
   retrieval: RetrievalConfig;
   auth: AuthConfig;
+  security: SecurityConfig;
 }
 
 /** Modelo padrão: Qwen3 4B Instruct (sem raciocínio obrigatório), quantização Q4_K_M. */
@@ -184,10 +205,13 @@ function readEnvironment(env: Env): AppEnvironment {
   return raw;
 }
 
-function loadQdrant(env: Env): QdrantConfig | null {
+const STRICT_HINT = "em ambiente corporativo (APP_ENV fora de demo/dev/local/test)";
+
+function loadQdrant(env: Env, strict: boolean): QdrantConfig | null {
   if (readStr(env, "QDRANT_URL") === null) return null;
   const url = readUrl(env, "QDRANT_URL", "");
   const allowInsecure = readBool(env, "QDRANT_ALLOW_INSECURE", false);
+  if (strict && allowInsecure) throw new ConfigError(`QDRANT_ALLOW_INSECURE=true não é permitido ${STRICT_HINT}`);
   if (url.startsWith("http:") && !isLoopback(url) && !allowInsecure) {
     throw new ConfigError("QDRANT_URL deve usar https:// fora de localhost (ou defina QDRANT_ALLOW_INSECURE=true conscientemente)");
   }
@@ -198,11 +222,15 @@ function loadQdrant(env: Env): QdrantConfig | null {
   };
 }
 
-function loadNeo4j(env: Env): Neo4jConfig | null {
+function loadNeo4j(env: Env, strict: boolean): Neo4jConfig | null {
   if (readStr(env, "NEO4J_URI") === null) return null;
   const uri = readUrl(env, "NEO4J_URI", "", ["bolt:", "bolt+s:", "bolt+ssc:", "neo4j:", "neo4j+s:", "neo4j+ssc:"]);
   const secure = /^(bolt|neo4j)\+(s|ssc):/.test(uri);
   const allowInsecure = readBool(env, "NEO4J_ALLOW_INSECURE", false);
+  if (strict && allowInsecure) throw new ConfigError(`NEO4J_ALLOW_INSECURE=true não é permitido ${STRICT_HINT}`);
+  if (strict && /^(bolt|neo4j)\+ssc:/.test(uri)) {
+    throw new ConfigError(`NEO4J_URI com +ssc (certificado não verificado) não é permitido ${STRICT_HINT}; use bolt+s:// ou neo4j+s://`);
+  }
   if (!secure && !isLoopback(uri) && !allowInsecure) {
     throw new ConfigError("NEO4J_URI deve usar bolt+s:// ou neo4j+s:// fora de localhost (ou defina NEO4J_ALLOW_INSECURE=true conscientemente)");
   }
@@ -273,11 +301,42 @@ function loadAuth(env: Env): AuthConfig {
   };
 }
 
+function loadSecurity(env: Env, strict: boolean, auth: AuthConfig): SecurityConfig {
+  const requireChatAuth = readBool(env, "CHAT_REQUIRE_AUTH", strict);
+  if (strict && !requireChatAuth) {
+    throw new ConfigError(`CHAT_REQUIRE_AUTH=false não é permitido ${STRICT_HINT}: o chat não pode ser anônimo`);
+  }
+  if (requireChatAuth && auth.mode === "none") {
+    throw new ConfigError(
+      "A autenticação do chat (CHAT_REQUIRE_AUTH) exige GERPRO_AUTH_MODE=jwt-hs256 (ou um resolvedor próprio)" +
+        (strict ? `; ela é obrigatória ${STRICT_HINT}` : ""),
+    );
+  }
+  if (strict && auth.jwt && (auth.jwt.issuer === null || auth.jwt.audience === null)) {
+    throw new ConfigError(`GERPRO_AUTH_JWT_ISSUER e GERPRO_AUTH_JWT_AUDIENCE são obrigatórios ${STRICT_HINT}`);
+  }
+  const token = readStr(env, "DIAGNOSTICS_TOKEN");
+  if (token !== null && Buffer.byteLength(token, "utf8") < 32) {
+    throw new ConfigError("DIAGNOSTICS_TOKEN deve ter ao menos 32 bytes");
+  }
+  if (token !== null && auth.jwt && token === auth.jwt.secret) {
+    throw new ConfigError("DIAGNOSTICS_TOKEN deve ser diferente de GERPRO_AUTH_JWT_SECRET");
+  }
+  return {
+    strict,
+    requireChatAuth,
+    diagnostics: { token, allowLoopback: readBool(env, "DIAGNOSTICS_ALLOW_LOOPBACK", !strict) },
+  };
+}
+
 export function loadConfig(env: Env = process.env): AppConfig {
   const numCtx = readInt(env, "OLLAMA_NUM_CTX", 8192, 0, 262_144);
   const ollamaBaseUrl = readUrl(env, "OLLAMA_BASE_URL", "http://127.0.0.1:11434");
+  const environment = readEnvironment(env);
+  const strict = !RELAXED_ENVIRONMENTS.includes(environment);
+  const auth = loadAuth(env);
   return {
-    environment: readEnvironment(env),
+    environment,
     port: readInt(env, "PORT", 3001, 1, 65535),
     host: readStr(env, "HOST") ?? "127.0.0.1",
     corsOrigin: readStr(env, "CORS_ORIGIN"),
@@ -295,11 +354,12 @@ export function loadConfig(env: Env = process.env): AppConfig {
       maxMessages: readInt(env, "CHAT_MAX_MESSAGES", 30, 1, 200),
       maxCharsPerMessage: readInt(env, "CHAT_MAX_CHARS_PER_MESSAGE", 8_000, 1, 100_000),
     },
-    qdrant: loadQdrant(env),
-    neo4j: loadNeo4j(env),
+    qdrant: loadQdrant(env, strict),
+    neo4j: loadNeo4j(env, strict),
     embeddings: loadEmbeddings(env, ollamaBaseUrl),
     retrieval: loadRetrieval(env),
-    auth: loadAuth(env),
+    auth,
+    security: loadSecurity(env, strict, auth),
   };
 }
 

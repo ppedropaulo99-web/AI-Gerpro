@@ -76,7 +76,7 @@ EMBEDDINGS_QUERY_PREFIX=                              # alguns modelos exigem, e
 - Se a indexação usou um modelo que **não** existe no Ollama, implemente a interface `EmbeddingProvider`
   (`embedQuery(text, signal)`, `health()`) para o serviço interno da Cognitiva e passe-a em
   `createRetrievalStack(config, { embeddings })`. Não use APIs pagas nem externas sem aprovação.
-- `GET /api/health` e `npm run check:retrieval` comparam a dimensão gerada com a de cada coleção e avisam se forem
+- `GET /api/health/details` (diagnóstico interno, Etapa 4.1) e `npm run check:retrieval` comparam a dimensão gerada com a de cada coleção e avisam se forem
   diferentes.
 
 ## 4. Mapear coleções e propriedades
@@ -308,9 +308,11 @@ o tipo de resolução, nunca identificadores, perguntas ou trechos.
   caracteres) e `linkedFrom`.
 - `citations`: `{ valid: ["Q1"], unknown: ["Q7"] }`. Os marcadores `unknown` foram citados pelo modelo sem
   corresponder a nenhuma fonte entregue, ou seja, indicam invenção.
-- `GET /api/health`: inclui `adapters.embeddings` e `retrieval {enabled, authMode, collections, graphQueries,
-  warnings}`, sem URLs, usuários, chaves ou nomes de banco.
-- Novo erro: `401 unauthorized`.
+- `GET /api/health/details` (diagnóstico interno, protegido desde a Etapa 4.1): inclui `adapters.embeddings` e
+  `retrieval {enabled, authMode, collections, graphQueries, warnings}`, sem URLs, usuários, chaves ou nomes de banco.
+  O `GET /api/health` público passou a trazer só o estado mínimo (ver docs/HANDOFF.md, seção 4).
+- Novo erro: `401 unauthorized`. Com `CHAT_REQUIRE_AUTH` (obrigatório em ambiente corporativo), o chat inteiro exige
+  o token do Gerpro, não só a recuperação.
 
 Desde a Etapa 3.2, o widget exibe as fontes (seção 7B).
 

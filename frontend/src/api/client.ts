@@ -2,7 +2,7 @@
  * Cliente HTTP do componente de chat. Fala apenas com o backend do AI Gerpro,
  * nunca com o Ollama diretamente. Sem dependência de React.
  */
-import type { ChatMessage, ChatResponse, ChatStreamEvent, ErrorResponse, OllamaHealthResponse } from "./types.ts";
+import type { ChatMessage, ChatResponse, ChatStreamEvent, ErrorResponse, OllamaHealthResponse, PublicHealthResponse } from "./types.ts";
 
 export class ApiError extends Error {
   override name = "ApiError";
@@ -38,6 +38,8 @@ export interface ChatApi {
    */
   streamChat(messages: ChatMessage[], signal?: AbortSignal): AsyncGenerator<Exclude<ChatStreamEvent, { type: "error" }>>;
   getOllamaHealth(signal?: AbortSignal): Promise<OllamaHealthResponse>;
+  /** Estado público do backend, com os limites aceitos pelo chat. Opcional em clientes injetados. */
+  getHealth?(signal?: AbortSignal): Promise<PublicHealthResponse>;
 }
 
 function isErrorResponse(data: unknown): data is ErrorResponse {
@@ -159,6 +161,10 @@ export function createChatApi(
     getOllamaHealth(signal) {
       // 503 também traz o corpo de diagnóstico (degradado/indisponível).
       return call<OllamaHealthResponse>("/health/ollama", { method: "GET", ...(signal ? { signal } : {}) }, [503]);
+    },
+
+    getHealth(signal) {
+      return call<PublicHealthResponse>("/health", { method: "GET", ...(signal ? { signal } : {}) });
     },
   };
 }

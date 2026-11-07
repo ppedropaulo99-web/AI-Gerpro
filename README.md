@@ -3,8 +3,10 @@
 Assistente de IA **independente**, executado localmente com [Ollama](https://ollama.com), preparado para
 integração futura ao sistema jurídico Gerpro como **painel lateral**.
 
-> **Ambiente:** demonstração técnica (`APP_ENV=demo`), sem dados reais. O ambiente aparece em `GET /api/health` e
-> nos logs, não no título do assistente.
+> **Ambiente:** demonstração técnica (`APP_ENV=demo`), sem dados reais. O ambiente aparece no diagnóstico interno
+> (`GET /api/health/details`) e nos logs, não no título do assistente. Em homologação/produção, `APP_ENV` ativa o
+> **modo corporativo** (chat só com autenticação, JWT com emissor/audiência, TLS verificado): ver
+> [docs/HANDOFF.md](docs/HANDOFF.md#4-implantação-homologação-e-produção).
 >
 > **Bases corporativas (Etapa 3.1):** os conectores somente leitura para **Qdrant** e **Neo4j** estão prontos, mas
 > **não configurados**. Sem configuração, o assistente usa só o Ollama, como antes. Para configurar, veja
@@ -69,17 +71,18 @@ Build de produção do backend: `npm start -w backend`.
 
 ## Embutir em outra página (widget)
 
-`npm run build:widget` gera `frontend/dist-widget/ai-gerpro.js` e `ai-gerpro.css`. Eles funcionam em qualquer página
-HTML; o sistema hospedeiro não precisa usar React:
+`npm run build:widget` gera **um único arquivo**, `frontend/dist-widget/ai-gerpro.js` (React e CSS embutidos). Ele
+funciona em qualquer página HTML; o sistema hospedeiro não precisa usar React. O widget roda em **Shadow DOM**
+(`<ai-gerpro-widget>`): o CSS da página não o altera e o CSS dele não vaza para a página.
 
 ```html
-<link rel="stylesheet" href="ai-gerpro.css" />
-<script src="ai-gerpro.js"></script>
+<script src="ai-gerpro.js?v=0.1.0"></script>
 <script>
   const ai = AIGerpro.mount({ apiBaseUrl: "http://127.0.0.1:3001/api" });
   // ai.open(); ai.close(); ai.toggle(); ai.isOpen(); ai.unmount();
   // ai.setConversationKey("usuario:organizacao"); ai.resetConversation();  // troca de sessão no Gerpro
   // Para usar um botão próprio do hospedeiro: AIGerpro.mount({ showLauncher: false, ... })
+  // AIGerpro.version informa a versão carregada. Um segundo mount() sem unmount() reaproveita a instância.
 </script>
 ```
 
@@ -87,14 +90,16 @@ Se a página for servida por outra origem, configure `CORS_ORIGIN` no backend co
 
 Para consultas às bases corporativas, o hospedeiro informa `getAuthToken: () => tokenEmitidoPeloBackendDoGerpro`.
 O token vai em `Authorization: Bearer`, e a identidade e as permissões são verificadas no servidor. Sem token, o
-assistente responde normalmente, sem consultar as bases.
+assistente responde normalmente, sem consultar as bases, **exceto** com `CHAT_REQUIRE_AUTH=true` (obrigatório em
+modo corporativo), quando o chat recusa requisições sem token válido (401).
 
 ## API
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/health` | Estado do backend, ambiente (`environment`), adaptadores (Qdrant, Neo4j, embeddings) e recuperação (`retrieval`), sem URLs nem segredos |
-| GET | `/api/health/ollama` | Conectividade com Ollama e presença do modelo. 200 = ok, 503 = indisponível/degradado |
+| GET | `/api/health` | **Público e mínimo**: `status`, `version` e limites do chat (`chat.maxMessages`, `chat.maxCharsPerMessage`). Não consulta as bases |
+| GET | `/api/health/ollama` | **Público e mínimo**: `status` (200 = ok; 503 = degradado/indisponível), `model`, `latencyMs`. Sem URLs nem versões; em cache por 5 s |
+| GET | `/api/health/details` | **Diagnóstico interno**: ambiente, Ollama, Qdrant, Neo4j, embeddings e avisos. Exige `DIAGNOSTICS_TOKEN` ou conexão direta de loopback sem proxy; senão 403 |
 | POST | `/api/chat` | Resposta completa: `{ "messages": [{ "role": "user", "content": "..." }] }` |
 | POST | `/api/chat/stream` | Mesma entrada; resposta em **NDJSON** (um evento JSON por linha) |
 
@@ -111,18 +116,21 @@ Erros fora do stream seguem o formato `{ "error": { "code", "message" } }`:
 | Situação | HTTP | `code` |
 |---|---|---|
 | Entrada inválida (inclui campos além de `messages`) | 400 | `bad_request` |
-| Credencial do Gerpro inválida ou expirada | 401 | `unauthorized` |
+| Credencial do Gerpro inválida/expirada, ou ausente com `CHAT_REQUIRE_AUTH` | 401 | `unauthorized` |
+| Diagnóstico interno sem autorização | 403 | `forbidden` |
 | Ollama inacessível | 503 | `llm_unavailable` |
 | Timeout (`OLLAMA_TIMEOUT_MS`) | 504 | `llm_timeout` |
 | Erro do Ollama (ex.: modelo ausente) | 502 | `llm_upstream_error` |
 | Resposta malformada/vazia | 502 | `llm_invalid_response` |
 
-No stream, falhas após o início chegam como `{"type":"error","error":{...}}` com os mesmos códigos.
+No stream, falhas após o início chegam como `{"type":"error","error":{...}}` com os mesmos códigos. As mensagens
+enviadas ao navegador são genéricas: endereços internos, portas e detalhes do Ollama ficam só no log do servidor.
 
 ## Configuração
 
 Veja [`.env.example`](.env.example): `APP_ENV`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT_MS`, `OLLAMA_THINK`, `OLLAMA_KEEP_ALIVE`,
-`OLLAMA_NUM_CTX`, `OLLAMA_PRELOAD`, `CHAT_MAX_*` e `CORS_ORIGIN`. As variáveis opcionais de recuperação são
+`OLLAMA_NUM_CTX`, `OLLAMA_PRELOAD`, `CHAT_MAX_*`, `CORS_ORIGIN`, `LOG_LEVEL`, `CHAT_REQUIRE_AUTH`, `DIAGNOSTICS_TOKEN` e
+`DIAGNOSTICS_ALLOW_LOOPBACK`. As variáveis opcionais de recuperação são
 `QDRANT_*`, `NEO4J_*`, `EMBEDDINGS_*`, `RETRIEVAL_*` e `GERPRO_AUTH_*`. O mapeamento de coleções e consultas fica
 em um JSON separado (modelo: `backend/retrieval.config.example.json`).
 

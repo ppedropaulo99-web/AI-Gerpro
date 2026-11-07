@@ -38,9 +38,9 @@ Sem Qdrant/Neo4j configurados, o `RetrievalService` fica desativado e o fluxo é
 | Filtro de raciocínio **dentro** do `OllamaClient` | Nenhuma rota consegue repassar raciocínio por engano |
 | `OLLAMA_THINK=auto` com detecção de capacidades (`/api/show`) | Separa o raciocínio quando o modelo suporta; não quebra modelos sem raciocínio |
 | **Markdown com renderizador próprio** (`markdown/parse.ts` → árvore → React) | Seguro por construção (sem `innerHTML`; o React escapa todo texto), tolerante a texto incompleto (streaming) e sem dependências. Alternativas avaliadas: `react-markdown` (dezenas de pacotes transitivos) e `marked`+`DOMPurify` (depende de `innerHTML` e de sanitização correta) |
-| Painel como **widget embutível** (`mountAiGerpro`) + build IIFE | Integração independente de tecnologia: o Gerpro só precisa incluir um `<script>` e um `<link>` (em etapa futura, com aprovação) |
+| Painel como **widget embutível** (`mountAiGerpro`) + build IIFE | Integração independente de tecnologia: o Gerpro só precisa incluir **um** `<script>` (o CSS vai embutido). Instância única: um segundo `mount()` reaproveita a existente |
 | Painel permanece montado quando fechado | Preserva a conversa e a geração em andamento; abrir/fechar não recarrega nada |
-| CSS com prefixo `.gia-` | Evita colisão com o CSS do hospedeiro (Shadow DOM fica como pendência) |
+| **Shadow DOM** (`<ai-gerpro-widget>`, Etapa 4.1) + prefixo `.gia-` | O CSS do hospedeiro não alcança o widget (nem com `!important`) e o do widget não vaza. O CSS é injetado no shadow root; tamanhos em `px` (o `font-size` da raiz da página não altera o widget) |
 
 ## Backend (`backend/src`)
 
@@ -53,8 +53,8 @@ Sem Qdrant/Neo4j configurados, o `RetrievalService` fica desativado e o fluxo é
 | `ollama/reasoning.ts` | `stripReasoning` (resposta completa) e `ReasoningStreamFilter` (streaming) |
 | `ollama/system-prompt.ts` | Regras do assistente (dados, referências jurídicas, prazos, limitação) + concisão |
 | `routes/chat.ts` | `/api/chat` e `/api/chat/stream` com validação compartilhada |
-| `routes/health.ts` | `/api/health` (inclui `environment`) e `/api/health/ollama` |
-| `errors.ts` | Mapeamento de erros para HTTP / evento de stream |
+| `routes/health.ts` | Públicos e mínimos: `/api/health` (estado + limites do chat) e `/api/health/ollama` (em cache por 5 s). Interno: `/api/health/details` (token administrativo ou loopback sem proxy) |
+| `errors.ts` | Mapeamento de erros para HTTP / evento de stream; mensagens ao navegador sempre genéricas (detalhes técnicos só no log) |
 | `contracts/api.ts` | Tipos públicos (inclui `ChatStreamEvent`); espelhados em `frontend/src/api/types.ts` |
 | `adapters/vector-store.ts`, `graph-store.ts` | Contratos **somente leitura** (Etapa 3.1: `upsert`/`delete`/`write` e Cypher livre removidos) |
 | `adapters/qdrant.ts`, `neo4j.ts` | Conectores reais; `cypher-guard.ts` valida as consultas autorizadas |

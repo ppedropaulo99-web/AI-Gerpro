@@ -70,13 +70,18 @@ export type ChatStreamEvent =
     }
   | { type: "error"; error: ErrorResponse["error"] };
 
+/** GET /api/health/ollama (público e mínimo): sem URLs, versões nem mensagens técnicas. */
 export interface OllamaHealthResponse {
   status: "ok" | "degraded" | "unavailable";
-  reachable: boolean;
-  modelAvailable: boolean;
   model: string;
-  availableModels: string[];
-  version: string | null;
   latencyMs: number;
-  error: string | null;
+}
+
+/** GET /api/health (público e mínimo): inclui os limites aceitos pelo chat. */
+export interface PublicHealthResponse {
+  status: "ok";
+  service: string;
+  version: string;
+  timestamp: string;
+  chat: { maxMessages: number; maxCharsPerMessage: number };
 }
