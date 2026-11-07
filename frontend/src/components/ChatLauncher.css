@@ -1,0 +1,58 @@
+/* Botão flutuante e painel lateral. Prefixo .gia- para não colidir com o CSS do hospedeiro. */
+.gia-root {
+  --gia-panel-width: min(440px, 100vw);
+  --gia-z: 2147483000;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.gia-launcher {
+  position: fixed;
+  left: 16px;
+  z-index: var(--gia-z);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem 0.6rem 0.8rem;
+  border: none;
+  border-radius: 999px;
+  background: #1f4e79;
+  color: #fff;
+  font: 600 14px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 4px 14px rgba(15, 35, 60, 0.28);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+}
+.gia-root--bottom-left .gia-launcher { bottom: 16px; }
+.gia-root--middle-left .gia-launcher { top: 50%; transform: translateY(-50%); }
+.gia-launcher:hover { box-shadow: 0 6px 18px rgba(15, 35, 60, 0.36); }
+.gia-launcher:focus-visible { outline: 3px solid #8fb8de; outline-offset: 2px; }
+.gia-launcher-icon { width: 20px; height: 20px; }
+/* Com o painel aberto, o botão fica oculto sob o painel (o painel tem botão de fechar). */
+.gia-root[data-open] .gia-launcher { opacity: 0; pointer-events: none; }
+
+.gia-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--gia-z);
+  width: var(--gia-panel-width);
+  display: flex;
+  background: #fff;
+  border-right: 1px solid #d9e2ec;
+  box-shadow: 4px 0 24px rgba(15, 35, 60, 0.18);
+  transform: translateX(-105%);
+  visibility: hidden;
+  transition: transform 0.25s ease, visibility 0s linear 0.25s;
+}
+.gia-panel--open {
+  transform: translateX(0);
+  visibility: visible;
+  transition: transform 0.25s ease, visibility 0s;
+}
+/* No painel, o chat ocupa toda a altura e largura disponíveis. */
+.gia-panel > .gia-chat { flex: 1; max-width: none; height: 100%; margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gia-panel, .gia-panel--open, .gia-launcher { transition: none; }
+}

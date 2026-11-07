@@ -1,0 +1,45 @@
+# --- Dependências e builds (regeneráveis com npm install / npm run build) ---
+node_modules/
+dist/
+dist-widget/
+*.tsbuildinfo
+coverage/
+
+# --- Configuração local e segredos (NUNCA versionar) ---
+.env
+.env.*
+!.env.example
+# Mapeamento real das bases (coleções, campos, consultas Cypher): fica só no servidor.
+# Somente o modelo sanitizado backend/retrieval.config.example.json é versionado.
+retrieval.config.json
+retrieval.config.*.json
+!retrieval.config.example.json
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+secrets/
+credentials*.json
+
+# --- Resultados locais de benchmark (contêm respostas do modelo e dados do ambiente) ---
+bench-results/
+
+# --- Logs e temporários ---
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# --- Editores, SO e ferramentas locais ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Gerpro</title>
+    <!--
+      Página hospedeira de EXEMPLO (HTML puro, sem React) para validar o painel lateral.
+      Simula apenas a presença de um sistema hospedeiro; não reproduz o Gerpro.
+    -->
+    <style>
+      body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #eef2f6; color: #1f2933; }
+      .host-top { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.5rem; background: #fff; border-bottom: 1px solid #d9e2ec; }
+      .host-top strong { color: #52606d; }
+      .host-main { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
+      .host-card { background: #fff; border: 1px solid #d9e2ec; border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+      .host-card h2 { margin-top: 0; font-size: 1.05rem; }
+      .host-card code { background: #f0f4f8; padding: 0.1em 0.3em; border-radius: 4px; }
+      .host-btn { padding: 0.45rem 0.9rem; border: 1px solid #9aa5b1; border-radius: 6px; background: #fff; cursor: pointer; font: inherit; }
+      .host-skeleton { height: 12px; border-radius: 6px; background: #e4e9ef; margin: 0.6rem 0; }
+    </style>
+  </head>
+  <body>
+    <header class="host-top">
+      <strong>Sistema hospedeiro (página de exemplo)</strong>
+      <button class="host-btn" id="host-toggle" type="button">Alternar assistente (API do widget)</button>
+    </header>
+    <main class="host-main">
+      <section class="host-card">
+        <h2>Como testar</h2>
+        <p>Use o botão <strong>AI Gerpro</strong> no canto inferior esquerdo para abrir e fechar o painel lateral, sem recarregar a página. <kbd>Esc</kbd> também fecha.</p>
+        <p>O botão no topo usa a API <code>AIGerpro.mount(...).toggle()</code>, como um sistema hospedeiro faria. O chat em página inteira continua em <a href="/pagina.html">pagina.html</a>.</p>
+      </section>
+      <section class="host-card" aria-hidden="true">
+        <div class="host-skeleton" style="width: 60%"></div>
+        <div class="host-skeleton" style="width: 85%"></div>
+        <div class="host-skeleton" style="width: 40%"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import { mountAiGerpro } from "/src/embed.tsx";
+      const ai = mountAiGerpro({ apiBaseUrl: "/api" });
+      document.getElementById("host-toggle").addEventListener("click", () => ai.toggle());
+      window.__aiGerpro = ai; // facilita inspeção manual no console
+    </script>
+  </body>
+</html>

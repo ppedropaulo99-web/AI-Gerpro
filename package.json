@@ -1,0 +1,26 @@
+{
+  "name": "gerpro-ia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Gerpro — assistente de IA independente para futura integração ao Gerpro (ambiente de demonstração)",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
+    "test": "npm test -w backend && npm test -w frontend",
+    "smoke": "npm run smoke -w backend",
+    "bench": "npm run bench -w backend",
+    "build:widget": "npm run build:widget -w frontend"
+  },
+  "overrides": {
+    "undici": "7.30.2"
+  }
+}

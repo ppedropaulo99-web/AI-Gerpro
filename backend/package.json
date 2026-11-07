@@ -1,0 +1,27 @@
+{
+  "name": "@gerpro-ia/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/server.ts",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "smoke": "node --env-file-if-exists=.env scripts/smoke-ollama.ts",
+    "bench": "node --env-file-if-exists=.env scripts/bench-latency.ts",
+    "bench:models": "node --env-file-if-exists=.env scripts/bench-models.ts",
+    "test:integration": "node --env-file-if-exists=.env --test \"test-integration/**/*.test.ts\"",
+    "check:retrieval": "node --env-file-if-exists=.env scripts/check-retrieval.ts"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.20.0",
+    "fastify": "^5.12.8",
+    "neo4j-driver": "^6.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

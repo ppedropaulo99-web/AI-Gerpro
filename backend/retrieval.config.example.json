@@ -1,0 +1,102 @@
+{
+  "$comment": "MODELO de mapeamento. Todos os nomes com SUBSTITUIR_ são marcadores: troque pelos nomes REAIS das coleções, campos de payload, rótulos e propriedades das bases da Cognitiva. Nenhum esquema é presumido. Este arquivo não deve conter segredos (eles ficam no .env). Documentação: docs/INTEGRACAO-RECUPERACAO.md",
+  "version": 1,
+  "qdrant": {
+    "collections": [
+      {
+        "$comment": "Coleção existente no Qdrant. O AI Gerpro nunca cria, altera ou exclui coleções.",
+        "name": "SUBSTITUIR_nome_da_colecao",
+        "label": "SUBSTITUIR rótulo legível (ex.: Documentos do escritório)",
+        "vectorName": null,
+        "contentField": "SUBSTITUIR_campo_texto",
+        "titleField": "SUBSTITUIR_campo_titulo",
+        "urlField": null,
+        "identifierFields": [
+          "SUBSTITUIR_campo_id_documento",
+          "SUBSTITUIR_campo_id_registro_no_grafo"
+        ],
+        "organizationField": "SUBSTITUIR_campo_id_organizacao",
+        "permissionsField": null,
+        "requiredPermission": null,
+        "filterableFields": [],
+        "searchByDefault": true,
+        "limit": 5,
+        "scoreThreshold": null
+      }
+    ]
+  },
+  "neo4j": {
+    "queries": [
+      {
+        "$comment": "Consulta pré-autorizada, somente leitura. Deve filtrar por $auth_organizationId (injetado pelo servidor) e terminar com LIMIT $limit.",
+        "name": "registroPorIdentificador",
+        "label": "SUBSTITUIR rótulo legível",
+        "description": "SUBSTITUIR descrição do que a consulta retorna",
+        "cypher": [
+          "MATCH (r:SUBSTITUIR_Rotulo {SUBSTITUIR_propriedade_id: $registroId})",
+          "WHERE r.SUBSTITUIR_propriedade_organizacao = $auth_organizationId",
+          "RETURN r.SUBSTITUIR_propriedade_id AS id, r.SUBSTITUIR_propriedade_titulo AS titulo, r.SUBSTITUIR_propriedade_resumo AS resumo",
+          "LIMIT $limit"
+        ],
+        "params": {
+          "registroId": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9._-]{1,64}"
+          }
+        },
+        "maxRows": 5,
+        "tenantScoped": true,
+        "requiredPermission": null,
+        "fromQuestion": null,
+        "idField": "id",
+        "titleField": "titulo",
+        "urlField": null,
+        "contentFields": [
+          "titulo",
+          "resumo"
+        ],
+        "identifierFields": []
+      },
+      {
+        "$comment": "Consulta acionada pela PERGUNTA: roda quando o texto do usuário (pergunta atual ou, em continuações, a mensagem anterior dele) contém o identificador capturado pela regex de fromQuestion. triggerTerms restringe a execução a perguntas com esses termos.",
+        "name": "responsavelPorIdentificador",
+        "label": "SUBSTITUIR rótulo legível (ex.: Responsável)",
+        "cypher": [
+          "MATCH (r:SUBSTITUIR_Rotulo {SUBSTITUIR_propriedade_id: $registroId})-[:SUBSTITUIR_RELACAO]->(p:SUBSTITUIR_RotuloPessoa)",
+          "WHERE r.SUBSTITUIR_propriedade_organizacao = $auth_organizationId",
+          "RETURN r.SUBSTITUIR_propriedade_id AS id, p.SUBSTITUIR_propriedade_nome AS responsavel",
+          "LIMIT $limit"
+        ],
+        "params": {
+          "registroId": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9._-]{1,64}"
+          }
+        },
+        "maxRows": 3,
+        "fromQuestion": {
+          "registroId": "\\b(SUBSTITUIR-[0-9]{4,})\\b"
+        },
+        "triggerTerms": [
+          "responsável",
+          "responsavel"
+        ],
+        "idField": "id",
+        "contentFields": [
+          "responsavel"
+        ]
+      }
+    ],
+    "links": [
+      {
+        "$comment": "Vínculo EXPLÍCITO: o valor do campo do payload do Qdrant é usado como parâmetro da consulta. Só declare se o identificador for o mesmo nas duas bases.",
+        "collection": "SUBSTITUIR_nome_da_colecao",
+        "payloadField": "SUBSTITUIR_campo_id_registro_no_grafo",
+        "query": "registroPorIdentificador",
+        "param": "registroId"
+      }
+    ]
+  }
+}
