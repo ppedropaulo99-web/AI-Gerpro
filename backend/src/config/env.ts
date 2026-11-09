@@ -76,6 +76,13 @@ export interface RetrievalConfig {
   maxCharsPerSource: number;
   /** Mensagens anteriores do usuário examinadas em perguntas de continuação; 0 = desativa. */
   contextTurns: number;
+  /**
+   * Modo contextual obrigatório (RETRIEVAL_REQUIRE_SOURCES). Ativo: o modelo só é chamado quando
+   * a recuperação trouxe fontes; sem elas, o backend responde com um texto fixo de insuficiência
+   * de informações. Padrão false (comportamento anterior). Requisitos validados na inicialização
+   * em src/retrieval/bootstrap.ts.
+   */
+  requireSources: boolean;
 }
 
 export type AuthMode = "none" | "jwt-hs256";
@@ -273,6 +280,7 @@ function loadRetrieval(env: Env): RetrievalConfig {
     maxContextChars: readInt(env, "RETRIEVAL_MAX_CONTEXT_CHARS", 6_000, 500, 100_000),
     maxCharsPerSource: readInt(env, "RETRIEVAL_MAX_CHARS_PER_SOURCE", 1_500, 100, 20_000),
     contextTurns: readInt(env, "RETRIEVAL_CONTEXT_TURNS", 4, 0, 20),
+    requireSources: readBool(env, "RETRIEVAL_REQUIRE_SOURCES", false),
   };
 }
 

@@ -5,7 +5,7 @@ import type { ChatRequest, ChatResponse, ChatStreamEvent, Grounding, ResolutionS
 import { LlmError, type ChatMessage, type LlmChatResult, type LlmStreamEvent } from "../ollama/client.ts";
 import { SYSTEM_PROMPT } from "../ollama/system-prompt.ts";
 import { HttpError, llmErrorToResponse } from "../errors.ts";
-import { checkCitations, clarificationText, sanitizeSourceText, type RetrievedSource } from "../retrieval/grounding.ts";
+import { REQUIRED_SOURCES_TEXT, checkCitations, clarificationText, sanitizeSourceText, type RetrievedSource } from "../retrieval/grounding.ts";
 
 /** Resumo enviado ao navegador: referência e início do trecho (o usuário já é autorizado a vê-lo). */
 function summarize(s: RetrievedSource): SourceSummary {
@@ -91,6 +91,7 @@ export async function chatRoutes(app: FastifyInstance, deps: AppDeps): Promise<v
     // Autenticação antes de qualquer trabalho: com CHAT_REQUIRE_AUTH, nada chega à GPU sem
     // AuthContext válido. Credencial inválida → AuthError → 401 (motivo só no log).
     const requireAuth = deps.config.security.requireChatAuth;
+    const requireSources = deps.config.retrieval.requireSources;
     const auth = requireAuth || deps.retrieval.enabled ? await deps.auth.resolve(req.headers) : null;
     if (requireAuth && auth === null) {
       throw new HttpError(401, "unauthorized", "Autenticação necessária para usar o assistente.");
@@ -100,7 +101,9 @@ export async function chatRoutes(app: FastifyInstance, deps: AppDeps): Promise<v
     const history: ChatMessage[] = req.body.messages.map((m) => ({ role: m.role, content: m.content }));
     const system: ChatMessage = { role: "system", content: SYSTEM_PROMPT };
     if (!deps.retrieval.enabled) {
-      return { messages: [system, ...history], grounding: "disabled", included: [], resolution: null, fixedAnswer: null };
+      // Modo contextual obrigatório sem recuperação (a inicialização já recusa): nunca chat geral.
+      const fixedAnswer = requireSources ? REQUIRED_SOURCES_TEXT.disabled : null;
+      return { messages: [system, ...history], grounding: "disabled", included: [], resolution: null, fixedAnswer };
     }
 
     const question = history.at(-1)!.content;
@@ -121,6 +124,7 @@ export async function chatRoutes(app: FastifyInstance, deps: AppDeps): Promise<v
           truncated: context.truncated,
           // Só o tipo e a quantidade: identificadores podem ser dados do caso.
           resolution: { kind: result.resolution.kind, values: result.resolution.values.length },
+          requireSources,
         },
       },
       "recuperação",
@@ -128,13 +132,16 @@ export async function chatRoutes(app: FastifyInstance, deps: AppDeps): Promise<v
     const messages: ChatMessage[] = [system, ...history.slice(0, -1)];
     if (context.message) messages.push({ role: "system", content: context.message });
     messages.push(history.at(-1)!);
-    return {
-      messages,
-      grounding: result.grounding,
-      included: context.included,
-      resolution: result.resolution,
-      fixedAnswer: result.grounding === "ambiguous" ? clarificationText(result.resolution.values) : null,
-    };
+    if (result.grounding === "ambiguous") {
+      return { messages, grounding: "ambiguous", included: [], resolution: result.resolution, fixedAnswer: clarificationText(result.resolution.values) };
+    }
+    if (requireSources && (result.grounding !== "sources" || context.included.length === 0)) {
+      // Modo contextual obrigatório: sem fontes (nenhuma, bases indisponíveis ou sem autorização),
+      // resposta fixa e o modelo NÃO é chamado. Nenhuma fonte é declarada.
+      const kind = result.grounding === "sources" ? "no_sources" : result.grounding;
+      return { messages, grounding: kind, included: [], resolution: result.resolution, fixedAnswer: REQUIRED_SOURCES_TEXT[kind] };
+    }
+    return { messages, grounding: result.grounding, included: context.included, resolution: result.resolution, fixedAnswer: null };
   }
 
   /** Cancela a chamada ao Ollama se o cliente desconectar antes do fim da resposta. */

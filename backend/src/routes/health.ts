@@ -129,6 +129,7 @@ export async function healthRoutes(app: FastifyInstance, deps: AppDeps): Promise
       },
       retrieval: {
         enabled: deps.retrieval.enabled,
+        requireSources: deps.config.retrieval.requireSources,
         authMode: deps.auth.mode,
         collections: deps.vectorStore.collections.length,
         graphQueries: deps.graphStore.queries.length,

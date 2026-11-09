@@ -3,7 +3,7 @@
  * Sem Qdrant/Neo4j configurados, devolve implementações "não configuradas" e o assistente
  * funciona exatamente como antes (somente Ollama).
  */
-import type { AppConfig } from "../config/env.ts";
+import { ConfigError, type AppConfig } from "../config/env.ts";
 import { UnconfiguredVectorStore, type VectorStore } from "../adapters/vector-store.ts";
 import { UnconfiguredGraphStore, type GraphStore } from "../adapters/graph-store.ts";
 import { QdrantVectorStore, createQdrantClient, type QdrantReadClient } from "../adapters/qdrant.ts";
@@ -79,5 +79,36 @@ export function createRetrievalStack(config: AppConfig, overrides: StackOverride
         `CHAT_MAX_MESSAGES=${config.chat.maxMessages} (${userTurnsInWindow}); aumente CHAT_MAX_MESSAGES ou reduza RETRIEVAL_CONTEXT_TURNS`,
     );
   }
+  if (config.retrieval.requireSources) assertRequireSources(retrieval, auth, mapping);
   return { vectorStore, graphStore, embeddings, retrieval, auth, mapping, warnings };
+}
+
+/**
+ * RETRIEVAL_REQUIRE_SOURCES=true: recusa iniciar sem as condições que tornam "fonte" uma evidência.
+ *
+ * - Recuperação ativa (Qdrant com embeddings e coleções, e/ou Neo4j com consultas mapeadas) e
+ *   autenticação real: sem elas, nenhuma pergunta teria fontes.
+ * - Qdrant: toda coleção mapeada precisa de `scoreThreshold`. Sem limite, o Qdrant sempre devolve
+ *   os vizinhos mais próximos, mesmo sem relação com a pergunta.
+ * - Neo4j: não há pontuação. As consultas só rodam com identificadores extraídos da pergunta
+ *   pelas regex `fromQuestion` (ou de turnos anteriores do usuário), e os vínculos só partem de
+ *   resultados do Qdrant que já passaram pelo limite. Esse mecanismo é preservado; nenhum limite
+ *   numérico é exigido do grafo.
+ */
+function assertRequireSources(retrieval: RetrievalService, auth: AuthContextResolver, mapping: RetrievalMapping): void {
+  const hint = "RETRIEVAL_REQUIRE_SOURCES=true";
+  if (!retrieval.enabled) {
+    throw new ConfigError(
+      `${hint} exige recuperação ativa: Qdrant com EMBEDDINGS_MODEL e coleções mapeadas, e/ou Neo4j com consultas mapeadas (RETRIEVAL_CONFIG_PATH)`,
+    );
+  }
+  if (auth.mode === "none") {
+    throw new ConfigError(`${hint} exige autenticação (GERPRO_AUTH_MODE=jwt-hs256 ou um resolvedor próprio)`);
+  }
+  if (retrieval.vectorEnabled) {
+    const missing = mapping.collections.filter((c) => c.scoreThreshold === null).map((c) => c.name);
+    if (missing.length) {
+      throw new ConfigError(`${hint} exige scoreThreshold em toda coleção do Qdrant (sem limite: ${missing.join(", ")})`);
+    }
+  }
 }

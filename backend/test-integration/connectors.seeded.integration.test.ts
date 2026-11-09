@@ -185,7 +185,7 @@ test("Neo4j real: consulta pré-autorizada em sessão de leitura, escopo de orga
       graphStore: store,
       embeddings: new FixedEmbeddings(),
       mapping: mapping(),
-      config: { mappingPath: null, timeoutMs: 8000, maxSources: 8, maxContextChars: 6000, maxCharsPerSource: 1500, contextTurns: 4 },
+      config: { mappingPath: null, timeoutMs: 8000, maxSources: 8, maxContextChars: 6000, maxCharsPerSource: 1500, contextTurns: 4, requireSources: false },
     });
     assert.equal(svc.graphEnabled, true);
   } finally {

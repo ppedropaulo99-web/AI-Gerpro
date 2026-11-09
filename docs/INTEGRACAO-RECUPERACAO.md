@@ -309,7 +309,8 @@ o tipo de resolução, nunca identificadores, perguntas ou trechos.
 - `citations`: `{ valid: ["Q1"], unknown: ["Q7"] }`. Os marcadores `unknown` foram citados pelo modelo sem
   corresponder a nenhuma fonte entregue, ou seja, indicam invenção.
 - `GET /api/health/details` (diagnóstico interno, protegido desde a Etapa 4.1): inclui `adapters.embeddings` e
-  `retrieval {enabled, authMode, collections, graphQueries, warnings}`, sem URLs, usuários, chaves ou nomes de banco.
+  `retrieval {enabled, requireSources, authMode, collections, graphQueries, warnings}`, sem URLs, usuários, chaves ou
+  nomes de banco. `requireSources` indica o modo contextual obrigatório (seção 9A).
   O `GET /api/health` público passou a trazer só o estado mínimo (ver docs/HANDOFF.md, seção 4).
 - Novo erro: `401 unauthorized`. Com `CHAT_REQUIRE_AUTH` (obrigatório em ambiente corporativo), o chat inteiro exige
   o token do Gerpro, não só a recuperação.
@@ -333,6 +334,40 @@ e marcadores `[Q9]` forjados são neutralizados. O tamanho respeita `RETRIEVAL_M
 > Essas medidas **reduzem** o risco de alucinação e de instruções embutidas nos documentos, mas **não o eliminam**,
 > sobretudo com um modelo de 4B. Não há validador jurídico. Use `citations.unknown` e o `grounding` para sinalizar
 > respostas na interface.
+
+## 9A. Modo contextual obrigatório (`RETRIEVAL_REQUIRE_SOURCES`)
+
+Desativado por padrão (a tabela da seção 9 continua valendo). Com `RETRIEVAL_REQUIRE_SOURCES=true`, a regra vale no
+backend para qualquer cliente, em `/api/chat` e `/api/chat/stream`:
+
+| `grounding` | Comportamento |
+|---|---|
+| `sources` | O modelo é chamado só com os trechos recuperados. A regra 7 passa a ser "responda somente com base nos trechos; não acrescente conhecimento geral" |
+| `no_sources`, `unavailable`, `unauthorized` | Resposta **fixa** de insuficiência de informações (texto em `REQUIRED_SOURCES_TEXT`, `src/retrieval/grounding.ts`). O modelo **não é chamado**, `sources` vem vazio, `citations` vazio e `usage` nulo |
+| `ambiguous` | Igual ao modo padrão: pedido de esclarecimento, sem o modelo |
+
+O contrato não muda: o stream mantém `start` → `sources` → `delta` → `done`, e a resposta fixa chega como um único
+`delta`. Autenticação (401), filtros de organização e permissão, limites e cancelamento são os mesmos.
+
+**Requisitos verificados ao iniciar** (o servidor não sobe se faltarem):
+
+- recuperação ativa (Qdrant com `EMBEDDINGS_MODEL` e coleções, e/ou Neo4j com consultas mapeadas);
+- `GERPRO_AUTH_MODE` diferente de `none`;
+- `scoreThreshold` em **toda** coleção do Qdrant. Sem limite, o Qdrant sempre devolve os vizinhos mais próximos,
+  mesmo sem relação com a pergunta. Calibre o valor com o modelo de embeddings real.
+
+**Relevância no Neo4j.** O grafo não tem pontuação, e nenhum limite numérico é exigido dele. A relevância é
+determinística: uma consulta só roda quando a pergunta (ou um turno anterior do usuário) contém um identificador
+reconhecido pela regex `fromQuestion`, e o registro precisa existir para a organização do token. Os vínculos
+(`neo4j.links`) só partem de resultados do Qdrant que já passaram pelo `scoreThreshold`. Por isso, a garantia depende
+de regex **específicas** (formato do identificador, como `REG-[0-9]{4}`): uma regex genérica faria consultas rodarem
+em perguntas sem relação.
+
+**Falha parcial.** Se uma base falhar e a outra trouxer fontes, a resposta é gerada só com as fontes que chegaram
+(`partial` no log). Se nenhuma fonte chegar, a resposta é a fixa de `unavailable`, nunca o chat genérico.
+
+**Limite.** O modo impede respostas **sem** contexto recuperado. A fidelidade da resposta **com** contexto continua
+dependendo do modelo (seção 9).
 
 ## 10. Testar a conectividade
 
@@ -430,6 +465,8 @@ A amostra é pequena e indicativa. A validação precisa ser repetida com dados 
 - O modelo de 4B pode ignorar regras, misturar fontes ou citar marcadores errados. `citations.unknown` e o widget
   sinalizam marcadores inexistentes, mas não detectam uma afirmação errada atribuída a uma fonte existente.
 - Os conectores ainda **não foram testados contra Qdrant/Neo4j reais** (ver 10A).
+- No modo contextual obrigatório (9A), a relevância no Neo4j depende da especificidade das regex `fromQuestion`, e a
+  do Qdrant, da calibração do `scoreThreshold`. O backend exige o limite, mas não avalia se o valor é adequado.
 
 ## 13. Pendências para a equipe
 

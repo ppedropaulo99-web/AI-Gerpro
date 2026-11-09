@@ -158,6 +158,11 @@ export interface DiagnosticsResponse {
   retrieval: {
     /** Há conector utilizável (Qdrant + embeddings, ou Neo4j com consultas mapeadas). */
     enabled: boolean;
+    /**
+     * Modo contextual obrigatório (RETRIEVAL_REQUIRE_SOURCES): sem fontes, resposta fixa e o
+     * modelo não é chamado. Clientes que exigem essa garantia devem conferir este campo.
+     */
+    requireSources: boolean;
     /** Integração de identidade com o Gerpro: "none" = nenhuma consulta corporativa. */
     authMode: string;
     collections: number;

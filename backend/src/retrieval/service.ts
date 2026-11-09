@@ -300,7 +300,8 @@ export class RetrievalService {
     history: readonly ConversationTurn[] = [],
   ): Promise<{ result: RetrievalResult; context: PreparedContext }> {
     const result = await this.retrieve(question, auth, signal, history);
-    return { result, context: prepareContext(result.grounding, result.sources, this.limits, result.resolution) };
+    const sourcesOnly = this.#d.config.requireSources;
+    return { result, context: prepareContext(result.grounding, result.sources, this.limits, result.resolution, { sourcesOnly }) };
   }
 
   async close(): Promise<void> {
