@@ -15,6 +15,35 @@ integração futura ao sistema jurídico Gerpro como **painel lateral**.
 > **Equipe da Cognitiva:** comece por [docs/HANDOFF.md](docs/HANDOFF.md) (arquitetura, instalação, integração,
 > testes e pendências).
 
+## Integração com o Gerpro Studio (versão exigida)
+
+O Gerpro Studio executa este backend, compilado, na aba Gerpro IA. Para essa integração:
+
+- **Branch:** `feature/require-contextual-sources`. A `main` **não** serve.
+- **Commit mínimo:** `14dca31c610c435ac6abfbbc0fd156d2d040adcb` ("feat: require retrieval sources for
+  contextual AI responses"), ou posterior na mesma branch.
+- **`RETRIEVAL_REQUIRE_SOURCES=true` é obrigatório.** O Studio define a variável ao iniciar o backend e
+  **recusa** um pacote que não confirme a garantia: sem fontes recuperadas, o modelo não é chamado e a
+  resposta é um texto fixo de insuficiência de informações. Não desative a variável na integração.
+
+Validação antes da entrega (num clone limpo):
+
+```powershell
+git clone -b feature/require-contextual-sources <URL-do-repositorio-privado> C:\dev\AI-Gerpro
+cd C:\dev\AI-Gerpro
+git branch --show-current                     # feature/require-contextual-sources
+git status --short                            # vazio
+git merge-base --is-ancestor 14dca31c610c435ac6abfbbc0fd156d2d040adcb HEAD; $?   # True
+npm ci
+npm run typecheck
+npm test                                      # inclui backend/test/require-sources.test.ts
+npm run build
+```
+
+Todos os comandos devem terminar sem erro. A compilação e a montagem do pacote para o Studio, a
+configuração das bases e os testes de conectividade estão no `docs/16-gerpro-ia.md` do Gerpro Studio
+(seções 4, 12 e 14). Resumo e detalhes deste repositório: [docs/HANDOFF.md](docs/HANDOFF.md#integração-com-o-gerpro-studio).
+
 ## Requisitos
 
 - Node.js ≥ 24 (testado com 26.13) e npm

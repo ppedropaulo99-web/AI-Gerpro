@@ -11,6 +11,39 @@ como implantar e o que falta para integrar o assistente ao Gerpro. Os detalhes t
 > e Neo4j estão implementados e testados com dublês, mas **nunca foram executados contra bancos reais**. Sem
 > configuração, o assistente funciona só com o Ollama.
 
+## Integração com o Gerpro Studio
+
+O Gerpro Studio empacota este backend e o executa na aba Gerpro IA, com recuperação contextual obrigatória.
+
+| Item | Exigência |
+|---|---|
+| Branch | `feature/require-contextual-sources` (a `main` não tem a garantia contextual) |
+| Commit mínimo | `14dca31c610c435ac6abfbbc0fd156d2d040adcb` ou posterior na mesma branch |
+| `RETRIEVAL_REQUIRE_SOURCES` | **`true`, obrigatório.** O Studio define a variável e recusa, ao iniciar, um backend que não a confirme |
+
+Com `RETRIEVAL_REQUIRE_SOURCES=true`, o modelo **só** é chamado quando a recuperação traz fontes. Sem fontes
+(nenhuma, bases indisponíveis ou sem autorização), o backend responde com um texto fixo de insuficiência de
+informações, sem chamar o Ollama. Ao iniciar, ele exige recuperação ativa, autenticação (`GERPRO_AUTH_MODE`) e
+`scoreThreshold` em toda coleção do Qdrant (ver `.env.example`). Não desative a variável na integração.
+
+**Validação antes da entrega** (num clone limpo; todos os comandos devem terminar sem erro):
+
+```powershell
+git clone -b feature/require-contextual-sources <URL-do-repositorio-privado> C:\dev\AI-Gerpro
+cd C:\dev\AI-Gerpro
+git branch --show-current                     # feature/require-contextual-sources
+git status --short                            # vazio
+git merge-base --is-ancestor 14dca31c610c435ac6abfbbc0fd156d2d040adcb HEAD; $?   # True
+npm ci
+npm run typecheck
+npm test                                      # inclui backend/test/require-sources.test.ts
+npm run build
+```
+
+Depois, siga o `docs/16-gerpro-ia.md` do Gerpro Studio (branch `feature/gerpro-ia-contextual`): compilação numa
+cópia própria e montagem de `resources/ai-gerpro` (seção 4), garantia contextual (seção 12) e infraestrutura da
+Cognitiva, com configuração, certificados, testes de conectividade e critérios de aceite (seção 14).
+
 ---
 
 ## 1. Implementado × não validado
